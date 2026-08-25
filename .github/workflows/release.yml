@@ -56,6 +56,7 @@ jobs:
     env:
       BACKEND: ${{ matrix.backend }}
       SCCACHE_GHA_ENABLED: 'true'
+      SCCACHE_IDLE_TIMEOUT: '0'
       SCCACHE_IGNORE_SERVER_IO_ERROR: '1'
 
     steps:
@@ -327,10 +328,17 @@ jobs:
         run: |
           compiler_args=()
           if [[ "$RUNNER_OS" == Windows ]]; then
-            compiler_args+=(
-              -DCMAKE_C_COMPILER=clang-cl.exe
-              -DCMAKE_CXX_COMPILER=clang-cl.exe
-            )
+            if [[ "$BACKEND" == hip ]]; then
+              compiler_args+=(
+                -DCMAKE_C_COMPILER=clang-cl.exe
+                -DCMAKE_CXX_COMPILER=clang-cl.exe
+              )
+            else
+              compiler_args+=(
+                -DCMAKE_C_COMPILER=cl.exe
+                -DCMAKE_CXX_COMPILER=cl.exe
+              )
+            fi
           fi
 
           cmake -S shim -B shim-build -G Ninja \
