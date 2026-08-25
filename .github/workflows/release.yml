@@ -37,22 +37,22 @@ jobs:
         include:
           - backend: cpu
             os: windows-2022
-            runner: windows-latest-8-cores
+            runner: windows-latest-xlarge
           - backend: cpu
             os: ubuntu-latest
-            runner: ubuntu-latest-16-cores
+            runner: ubuntu-latest-xlarge
           - backend: cuda
             os: windows-2022
-            runner: windows-latest-8-cores
+            runner: windows-latest-xlarge
           - backend: cuda
             os: ubuntu-latest
-            runner: ubuntu-latest-16-cores
+            runner: ubuntu-latest-xlarge
           - backend: hip
             os: windows-2022
-            runner: windows-latest-8-cores
+            runner: windows-latest-xlarge
           - backend: hip
             os: ubuntu-latest
-            runner: ubuntu-latest-16-cores
+            runner: ubuntu-latest-xlarge
           - backend: metal
             os: macos-latest
             runner: macos-latest-xlarge
