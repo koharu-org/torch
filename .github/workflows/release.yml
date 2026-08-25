@@ -320,12 +320,18 @@ jobs:
         run: |
           compiler_args=()
           if [[ "$RUNNER_OS" == Windows ]]; then
-            compiler_args+=(
-              -DCMAKE_C_COMPILER=clang-cl.exe
-              -DCMAKE_CXX_COMPILER=clang-cl.exe
-            )
             if [[ "$BACKEND" == cuda ]]; then
-              compiler_args+=(-DCMAKE_CUDA_HOST_COMPILER=cl.exe)
+              # PyTorch's exported CUDA config forces a Clang C++ compiler to
+              # become NVCC's host compiler, so this consumer must use MSVC.
+              compiler_args+=(
+                -DCMAKE_C_COMPILER=cl.exe
+                -DCMAKE_CXX_COMPILER=cl.exe
+              )
+            else
+              compiler_args+=(
+                -DCMAKE_C_COMPILER=clang-cl.exe
+                -DCMAKE_CXX_COMPILER=clang-cl.exe
+              )
             fi
           fi
 
