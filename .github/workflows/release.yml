@@ -320,16 +320,12 @@ jobs:
         run: |
           compiler_args=()
           if [[ "$RUNNER_OS" == Windows ]]; then
-            if [[ "$BACKEND" == hip ]]; then
-              compiler_args+=(
-                -DCMAKE_C_COMPILER=clang-cl.exe
-                -DCMAKE_CXX_COMPILER=clang-cl.exe
-              )
-            else
-              compiler_args+=(
-                -DCMAKE_C_COMPILER=cl.exe
-                -DCMAKE_CXX_COMPILER=cl.exe
-              )
+            compiler_args+=(
+              -DCMAKE_C_COMPILER=clang-cl.exe
+              -DCMAKE_CXX_COMPILER=clang-cl.exe
+            )
+            if [[ "$BACKEND" == cuda ]]; then
+              compiler_args+=(-DCMAKE_CUDA_HOST_COMPILER=cl.exe)
             fi
           fi
 
