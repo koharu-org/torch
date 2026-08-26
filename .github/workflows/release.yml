@@ -20,6 +20,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       tag: ${{ steps.release.outputs.tag }}
+      release_tag: ${{ steps.release.outputs.release_tag }}
 
     steps:
       - name: Resolve latest PyTorch release
@@ -28,7 +29,15 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           tag=$(gh api repos/pytorch/pytorch/releases/latest --jq .tag_name)
+          existing_tags=$(gh api --paginate "repos/$GITHUB_REPOSITORY/releases?per_page=100" --jq '.[].tag_name')
+          release_tag=$tag
+          suffix=1
+          while grep -Fxq "$release_tag" <<< "$existing_tags"; do
+            release_tag="$tag.$suffix"
+            ((suffix += 1))
+          done
           printf 'tag=%s\n' "$tag" >> "$GITHUB_OUTPUT"
+          printf 'release_tag=%s\n' "$release_tag" >> "$GITHUB_OUTPUT"
 
   build:
     needs: source
@@ -38,19 +47,19 @@ jobs:
       matrix:
         include:
           - backend: cpu
-            os: windows-2022-xlarge
+            os: windows-2022
           - backend: cpu
-            os: ubuntu-latest-xlarge
+            os: ubuntu-latest
           - backend: cuda
-            os: windows-2022-xlarge
+            os: windows-2022
           - backend: cuda
-            os: ubuntu-latest-xlarge
+            os: ubuntu-latest
           - backend: hip
-            os: windows-2022-xlarge
+            os: windows-2022
           - backend: hip
-            os: ubuntu-latest-xlarge
+            os: ubuntu-latest
           - backend: metal
-            os: macos-latest-xlarge
+            os: macos-latest
 
     runs-on: ${{ matrix.os }}
     env:
@@ -275,14 +284,14 @@ jobs:
             -DUSE_CUSPARSELT=OFF \
             -DUSE_CUDSS=OFF \
             -DUSE_DISTRIBUTED=OFF \
-            -DUSE_FBGEMM=OFF \
+            -DUSE_FBGEMM=ON \
             -DUSE_FLASH_ATTENTION=OFF \
             -DUSE_GLOO=OFF \
             -DUSE_ITT=OFF \
             -DUSE_KINETO=OFF \
             -DUSE_MAGMA=OFF \
             -DUSE_MEM_EFF_ATTENTION=OFF \
-            -DUSE_MKLDNN=OFF \
+            -DUSE_MKLDNN=ON \
             -DUSE_MPI=OFF \
             -DUSE_MSLK=OFF \
             -DUSE_NCCL=OFF \
@@ -293,11 +302,11 @@ jobs:
             -DUSE_NVSHMEM=OFF \
             -DUSE_OBSERVERS=OFF \
             -DUSE_OPENCL=OFF \
-            -DUSE_OPENMP=OFF \
+            -DUSE_OPENMP=ON \
             -DUSE_PROF=OFF \
             -DUSE_PYTORCH_METAL=OFF \
             -DUSE_PYTORCH_METAL_EXPORT=OFF \
-            -DUSE_PYTORCH_QNNPACK=OFF \
+            -DUSE_PYTORCH_QNNPACK=ON \
             -DUSE_RELATIVE_PATHS=ON \
             -DUSE_ROCM_CK_GEMM=OFF \
             -DUSE_ROCM_CK_SDPA=OFF \
@@ -305,7 +314,7 @@ jobs:
             -DUSE_TENSORPIPE=OFF \
             -DUSE_VALGRIND=OFF \
             -DUSE_VULKAN=OFF \
-            -DUSE_XNNPACK=OFF \
+            -DUSE_XNNPACK=ON \
             -DUSE_XPU=OFF \
             "${platform_args[@]}" \
             "${backend_args[@]}"
@@ -404,9 +413,9 @@ jobs:
       - name: Publish Torch release
         uses: softprops/action-gh-release@v3
         with:
-          tag_name: ${{ needs.source.outputs.tag }}
+          tag_name: ${{ needs.source.outputs.release_tag }}
           target_commitish: ${{ github.event.repository.default_branch }}
-          name: Torch ${{ needs.source.outputs.tag }}
+          name: Torch ${{ needs.source.outputs.release_tag }}
           body: Koharu runtime dependency.
           fail_on_unmatched_files: true
           files: release/*.tar.gz
