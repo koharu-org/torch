@@ -2,8 +2,6 @@ name: Torch
 
 on:
   workflow_dispatch:
-  schedule:
-    - cron: '17 4 * * 0'
   push:
     branches: ['main']
 
@@ -47,19 +45,19 @@ jobs:
       matrix:
         include:
           - backend: cpu
-            os: windows-2022
+            os: windows-2022-xlarge
           - backend: cpu
-            os: ubuntu-latest
+            os: ubuntu-latest-xlarge
           - backend: cuda
-            os: windows-2022
+            os: windows-2022-xlarge
           - backend: cuda
-            os: ubuntu-latest
+            os: ubuntu-latest-xlarge
           - backend: hip
-            os: windows-2022
+            os: windows-2022-xlarge
           - backend: hip
-            os: ubuntu-latest
+            os: ubuntu-latest-xlarge
           - backend: metal
-            os: macos-latest
+            os: macos-latest-xlarge
 
     runs-on: ${{ matrix.os }}
     env:
