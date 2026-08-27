@@ -378,10 +378,7 @@ jobs:
           case "$RUNNER_OS" in
             Windows)
               cp install/lib/c10*.dll install/lib/torch*.dll package/
-              cp \
-                "$INTEL_OPENMP_ROOT/bin/libiomp5md.dll" \
-                "$INTEL_OPENMP_ROOT/bin/libiompstubs5md.dll" \
-                package/
+              cp "$INTEL_OPENMP_ROOT/bin/libiomp5md.dll" package/
               extension=dll
               prefix=
               ;;
