@@ -174,6 +174,11 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           python -m pip install -r upstream/pytorch/requirements-build.txt
+          if [[ "$RUNNER_OS" == Windows ]]; then
+            python -m pip install intel-openmp==2024.2.0
+            python_root=$(cygpath -m "$(python -c 'import sys; print(sys.prefix)')")
+            printf 'INTEL_OPENMP_ROOT=%s\n' "$python_root/Library" >> "$GITHUB_ENV"
+          fi
 
       - name: Generate HIP sources
         if: matrix.backend == 'hip'
@@ -191,6 +196,13 @@ jobs:
           fi
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends "${packages[@]}"
+
+      - name: Install macOS OpenMP
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          upstream/pytorch/.ci/wheel/install_libomp.sh
+          printf 'OMP_PREFIX=/opt/llvm-openmp\n' >> "$GITHUB_ENV"
 
       - name: Configure
         shell: bash
@@ -255,6 +267,14 @@ jobs:
               platform_args+=(-DCMAKE_OSX_ARCHITECTURES=arm64)
               ;;
           esac
+
+          if [[ "$RUNNER_OS" == Windows ]]; then
+            platform_args+=(
+              "-DCMAKE_INCLUDE_PATH=$INTEL_OPENMP_ROOT/opt/compiler/include"
+              "-DOpenMP_libiomp5_LIBRARY=$INTEL_OPENMP_ROOT/lib/libiomp5md.lib"
+              "-DOpenMP_libomp_LIBRARY=$INTEL_OPENMP_ROOT/lib/libiomp5md.lib"
+            )
+          fi
 
           cmake -S upstream/pytorch -B build -G Ninja \
             -DCMAKE_BUILD_TYPE=Release \
@@ -358,16 +378,25 @@ jobs:
           case "$RUNNER_OS" in
             Windows)
               cp install/lib/c10*.dll install/lib/torch*.dll package/
+              cp \
+                "$INTEL_OPENMP_ROOT/bin/libiomp5md.dll" \
+                "$INTEL_OPENMP_ROOT/bin/libiompstubs5md.dll" \
+                package/
               extension=dll
               prefix=
               ;;
             Linux)
               cp install/lib/libc10*.so* install/lib/libtorch*.so* package/
+              cp -L "$(gcc -print-file-name=libgomp.so.1)" package/libgomp.so.1
               extension=so
               prefix=lib
               ;;
             macOS)
+              python upstream/pytorch/tools/embed_libomp_macos.py \
+                --libomp-path "$OMP_PREFIX/lib/libomp.dylib" \
+                --lib-dir "$PWD/install/lib"
               cp install/lib/libc10*.dylib install/lib/libtorch*.dylib package/
+              cp -L "$OMP_PREFIX/lib/libomp.dylib" package/
               extension=dylib
               prefix=lib
               ;;
