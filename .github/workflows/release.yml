@@ -2,6 +2,8 @@ name: Torch
 
 on:
   workflow_dispatch:
+  schedule:
+    - cron: '17 4 * * *'
   push:
     branches: ['main']
 
@@ -45,19 +47,19 @@ jobs:
       matrix:
         include:
           - backend: cpu
-            os: windows-2022-xlarge
+            os: windows-latest
           - backend: cpu
-            os: ubuntu-latest-xlarge
+            os: ubuntu-latest
           - backend: cuda
-            os: windows-2022-xlarge
+            os: windows-latest
           - backend: cuda
-            os: ubuntu-latest-xlarge
+            os: ubuntu-latest
           - backend: hip
-            os: windows-2022-xlarge
+            os: windows-latest
           - backend: hip
-            os: ubuntu-latest-xlarge
+            os: ubuntu-latest
           - backend: metal
-            os: macos-latest-xlarge
+            os: macos-latest
 
     runs-on: ${{ matrix.os }}
     env:
@@ -88,9 +90,11 @@ jobs:
           version: v0.16.0
           disable_annotations: true
 
-      - name: Enable MSVC
+      - name: Enable Visual Studio 2022 toolset
         if: runner.os == 'Windows'
         uses: ilammy/msvc-dev-cmd@v1
+        with:
+          toolset: '14.44'
 
       - name: Install CUDA 13.0
         if: matrix.backend == 'cuda'
@@ -224,7 +228,7 @@ jobs:
 
           case "$BACKEND" in
             cuda)
-              export TORCH_CUDA_ARCH_LIST='7.5;8.0;8.6;8.9;9.0;10.0;12.0+PTX'
+              export TORCH_CUDA_ARCH_LIST='7.5;8.6;8.9;12.0'
               backend_args=(
                 -DUSE_CUDA=ON
                 -DUSE_ROCM=OFF
@@ -236,7 +240,7 @@ jobs:
               )
               ;;
             hip)
-              export PYTORCH_ROCM_ARCH='gfx1010;gfx1011;gfx1012;gfx1030;gfx1031;gfx1032;gfx1033;gfx1034;gfx1035;gfx1036;gfx1100;gfx1101;gfx1102;gfx1103;gfx1150;gfx1151;gfx1152;gfx1153;gfx1200;gfx1201;gfx908;gfx90a'
+              export PYTORCH_ROCM_ARCH='gfx1030;gfx1031;gfx1032;gfx1100;gfx1101;gfx1102;gfx1151;gfx1200;gfx1201'
               printf 'PYTORCH_ROCM_ARCH=%s\n' "$PYTORCH_ROCM_ARCH" >> "$GITHUB_ENV"
               backend_args=(
                 -DUSE_CUDA=OFF
