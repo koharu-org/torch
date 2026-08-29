@@ -178,7 +178,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           python -m pip install -r upstream/pytorch/requirements-build.txt
-          if [[ "$RUNNER_OS" == Windows ]]; then
+          if [[ "$RUNNER_OS" == Windows && "$BACKEND" == cpu ]]; then
             python -m pip install intel-openmp==2024.2.0
             python_root=$(cygpath -m "$(python -c 'import sys; print(sys.prefix)')")
             printf 'INTEL_OPENMP_ROOT=%s\n' "$python_root/Library" >> "$GITHUB_ENV"
@@ -202,7 +202,7 @@ jobs:
           sudo apt-get install -y --no-install-recommends "${packages[@]}"
 
       - name: Install macOS OpenMP
-        if: runner.os == 'macOS'
+        if: runner.os == 'macOS' && matrix.backend == 'cpu'
         shell: bash
         run: |
           upstream/pytorch/.ci/wheel/install_libomp.sh
@@ -253,11 +253,6 @@ jobs:
                   -DCMAKE_C_COMPILER=clang-cl.exe
                   -DCMAKE_CXX_COMPILER=clang-cl.exe
                 )
-              else
-                platform_args=(
-                  -DCMAKE_C_COMPILER=clang
-                  -DCMAKE_CXX_COMPILER=clang++
-                )
               fi
               ;;
             metal)
@@ -272,7 +267,25 @@ jobs:
               ;;
           esac
 
-          if [[ "$RUNNER_OS" == Windows ]]; then
+          if [[ "$BACKEND" == cpu ]]; then
+            backend_args+=(
+              -DUSE_FBGEMM=ON
+              -DUSE_MKLDNN=ON
+              -DUSE_OPENMP=ON
+              -DUSE_PYTORCH_QNNPACK=ON
+              -DUSE_XNNPACK=ON
+            )
+          else
+            backend_args+=(
+              -DUSE_FBGEMM=OFF
+              -DUSE_MKLDNN=OFF
+              -DUSE_OPENMP=OFF
+              -DUSE_PYTORCH_QNNPACK=OFF
+              -DUSE_XNNPACK=OFF
+            )
+          fi
+
+          if [[ "$RUNNER_OS" == Windows && "$BACKEND" == cpu ]]; then
             platform_args+=(
               "-DCMAKE_INCLUDE_PATH=$INTEL_OPENMP_ROOT/opt/compiler/include"
               "-DOpenMP_libiomp5_LIBRARY=$INTEL_OPENMP_ROOT/lib/libiomp5md.lib"
@@ -306,14 +319,12 @@ jobs:
             -DUSE_CUSPARSELT=OFF \
             -DUSE_CUDSS=OFF \
             -DUSE_DISTRIBUTED=OFF \
-            -DUSE_FBGEMM=ON \
             -DUSE_FLASH_ATTENTION=OFF \
             -DUSE_GLOO=OFF \
             -DUSE_ITT=OFF \
             -DUSE_KINETO=OFF \
             -DUSE_MAGMA=OFF \
             -DUSE_MEM_EFF_ATTENTION=OFF \
-            -DUSE_MKLDNN=ON \
             -DUSE_MPI=OFF \
             -DUSE_MSLK=OFF \
             -DUSE_NCCL=OFF \
@@ -324,11 +335,9 @@ jobs:
             -DUSE_NVSHMEM=OFF \
             -DUSE_OBSERVERS=OFF \
             -DUSE_OPENCL=OFF \
-            -DUSE_OPENMP=ON \
             -DUSE_PROF=OFF \
             -DUSE_PYTORCH_METAL=OFF \
             -DUSE_PYTORCH_METAL_EXPORT=OFF \
-            -DUSE_PYTORCH_QNNPACK=ON \
             -DUSE_RELATIVE_PATHS=ON \
             -DUSE_ROCM_CK_GEMM=OFF \
             -DUSE_ROCM_CK_SDPA=OFF \
@@ -336,7 +345,6 @@ jobs:
             -DUSE_TENSORPIPE=OFF \
             -DUSE_VALGRIND=OFF \
             -DUSE_VULKAN=OFF \
-            -DUSE_XNNPACK=ON \
             -DUSE_XPU=OFF \
             "${platform_args[@]}" \
             "${backend_args[@]}"
@@ -382,22 +390,30 @@ jobs:
           case "$RUNNER_OS" in
             Windows)
               cp install/lib/c10*.dll install/lib/torch*.dll package/
-              cp "$INTEL_OPENMP_ROOT/bin/libiomp5md.dll" package/
+              if [[ "$BACKEND" == cpu ]]; then
+                cp "$INTEL_OPENMP_ROOT/bin/libiomp5md.dll" package/
+              fi
               extension=dll
               prefix=
               ;;
             Linux)
               cp install/lib/libc10*.so* install/lib/libtorch*.so* package/
-              cp -L "$(gcc -print-file-name=libgomp.so.1)" package/libgomp.so.1
+              if [[ "$BACKEND" == cpu ]]; then
+                cp -L "$(gcc -print-file-name=libgomp.so.1)" package/libgomp.so.1
+              fi
               extension=so
               prefix=lib
               ;;
             macOS)
-              python upstream/pytorch/tools/embed_libomp_macos.py \
-                --libomp-path "$OMP_PREFIX/lib/libomp.dylib" \
-                --lib-dir "$PWD/install/lib"
+              if [[ "$BACKEND" == cpu ]]; then
+                python upstream/pytorch/tools/embed_libomp_macos.py \
+                  --libomp-path "$OMP_PREFIX/lib/libomp.dylib" \
+                  --lib-dir "$PWD/install/lib"
+              fi
               cp install/lib/libc10*.dylib install/lib/libtorch*.dylib package/
-              cp -L "$OMP_PREFIX/lib/libomp.dylib" package/
+              if [[ "$BACKEND" == cpu ]]; then
+                cp -L "$OMP_PREFIX/lib/libomp.dylib" package/
+              fi
               extension=dylib
               prefix=lib
               ;;
