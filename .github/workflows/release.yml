@@ -345,7 +345,7 @@ jobs:
       - name: Build Torch
         shell: bash
         timeout-minutes: 300
-        run: cmake --build build --target install --config Release
+        run: cmake --build build --target install --config Release --parallel "$(nproc 2>/dev/null || sysctl -n hw.logicalcpu)"
 
       - name: Build koharu-torch shim
         shell: bash
@@ -374,7 +374,7 @@ jobs:
             -DCMAKE_C_COMPILER_LAUNCHER=sccache \
             -DCMAKE_CXX_COMPILER_LAUNCHER=sccache \
             "${compiler_args[@]}"
-          cmake --build shim-build --target install --config Release
+          cmake --build shim-build --target install --config Release --parallel "$(nproc 2>/dev/null || sysctl -n hw.logicalcpu)"
 
       - name: Package Torch
         shell: bash
