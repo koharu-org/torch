@@ -345,7 +345,14 @@ jobs:
       - name: Build Torch
         shell: bash
         timeout-minutes: 300
-        run: cmake --build build --target install --config Release --parallel
+        run: |
+          parallel_args=(--parallel)
+          if [[ "$RUNNER_OS" == Linux && ( "$BACKEND" == cuda || "$BACKEND" == hip ) ]]; then
+            # ubuntu-latest is 2 cores / 7GB. Unlimited ninja plus nvcc/cicc
+            # trips GitHub's hosted-runner CPU watchdog (exit 143).
+            parallel_args=(--parallel 2)
+          fi
+          cmake --build build --target install --config Release "${parallel_args[@]}"
 
       - name: Build koharu-torch shim
         shell: bash
