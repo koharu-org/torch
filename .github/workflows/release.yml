@@ -201,13 +201,6 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends "${packages[@]}"
 
-      - name: Install macOS OpenMP
-        if: runner.os == 'macOS' && matrix.backend == 'cpu'
-        shell: bash
-        run: |
-          upstream/pytorch/.ci/wheel/install_libomp.sh
-          printf 'OMP_PREFIX=/opt/llvm-openmp\n' >> "$GITHUB_ENV"
-
       - name: Configure
         shell: bash
         run: |
@@ -405,15 +398,7 @@ jobs:
               prefix=lib
               ;;
             macOS)
-              if [[ "$BACKEND" == cpu ]]; then
-                python upstream/pytorch/tools/embed_libomp_macos.py \
-                  --libomp-path "$OMP_PREFIX/lib/libomp.dylib" \
-                  --lib-dir "$PWD/install/lib"
-              fi
               cp install/lib/libc10*.dylib install/lib/libtorch*.dylib package/
-              if [[ "$BACKEND" == cpu ]]; then
-                cp -L "$OMP_PREFIX/lib/libomp.dylib" package/
-              fi
               extension=dylib
               prefix=lib
               ;;
