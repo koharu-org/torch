@@ -345,7 +345,13 @@ jobs:
       - name: Build Torch
         shell: bash
         timeout-minutes: 300
-        run: cmake --build build --target install --config Release --parallel "$(nproc 2>/dev/null || sysctl -n hw.logicalcpu)"
+        run: |
+          jobs=$(nproc 2>/dev/null || sysctl -n hw.logicalcpu)
+          # nproc-parallel nvcc/cicc trips GitHub's hosted-runner watchdog (exit 143).
+          if [[ "$RUNNER_OS" == Linux && "$BACKEND" == cuda ]]; then
+            jobs=1
+          fi
+          cmake --build build --target install --config Release --parallel "$jobs"
 
       - name: Build koharu-torch shim
         shell: bash
