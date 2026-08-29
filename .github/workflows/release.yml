@@ -342,17 +342,17 @@ jobs:
             "${platform_args[@]}" \
             "${backend_args[@]}"
 
+      - name: Set build job count
+        shell: bash
+        run: |
+          cores=$(nproc 2>/dev/null || getconf _NPROCESSORS_ONLN 2>/dev/null || sysctl -n hw.ncpu)
+          printf 'CMAKE_BUILD_PARALLEL_LEVEL=%s\n' "$cores" >> "$GITHUB_ENV"
+          printf 'Using %s parallel jobs\n' "$cores"
+
       - name: Build Torch
         shell: bash
         timeout-minutes: 300
-        run: |
-          parallel_args=(--parallel)
-          if [[ "$RUNNER_OS" == Linux && ( "$BACKEND" == cuda || "$BACKEND" == hip ) ]]; then
-            # ubuntu-latest is 2 cores / 7GB. Unlimited ninja plus nvcc/cicc
-            # trips GitHub's hosted-runner CPU watchdog (exit 143).
-            parallel_args=(--parallel 2)
-          fi
-          cmake --build build --target install --config Release "${parallel_args[@]}"
+        run: cmake --build build --target install --config Release --parallel "$CMAKE_BUILD_PARALLEL_LEVEL"
 
       - name: Build koharu-torch shim
         shell: bash
@@ -381,7 +381,7 @@ jobs:
             -DCMAKE_C_COMPILER_LAUNCHER=sccache \
             -DCMAKE_CXX_COMPILER_LAUNCHER=sccache \
             "${compiler_args[@]}"
-          cmake --build shim-build --target install --config Release --parallel
+          cmake --build shim-build --target install --config Release --parallel "$CMAKE_BUILD_PARALLEL_LEVEL"
 
       - name: Package Torch
         shell: bash
