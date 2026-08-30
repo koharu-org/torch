@@ -342,7 +342,14 @@ jobs:
       - name: Build Torch
         shell: bash
         timeout-minutes: 300
-        run: cmake --build build --target install --config Release
+        run: |
+          parallel_args=()
+          if [[ "$RUNNER_OS" == Linux && "$BACKEND" == cuda ]]; then
+            jobs=$(( $(nproc) / 2 ))
+            (( jobs < 1 )) && jobs=1
+            parallel_args+=(--parallel "$jobs")
+          fi
+          cmake --build build --target install --config Release "${parallel_args[@]}"
 
       - name: Build koharu-torch shim
         shell: bash
