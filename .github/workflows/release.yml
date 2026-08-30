@@ -96,11 +96,11 @@ jobs:
         with:
           toolset: '14.44'
 
-      - name: Install CUDA 12.9
+      - name: Install CUDA 13.0
         if: matrix.backend == 'cuda'
         uses: Jimver/cuda-toolkit@master
         with:
-          cuda: '12.9.0'
+          cuda: '13.0.0'
           method: network
           sub-packages: >-
             ${{ runner.os == 'Linux'
@@ -124,19 +124,19 @@ jobs:
             Linux)
               curl --fail --location --retry 2 \
                 --output "$RUNNER_TEMP/cudnn.tar.xz" \
-                https://developer.download.nvidia.com/compute/cudnn/redist/cudnn/linux-x86_64/cudnn-linux-x86_64-9.20.0.48_cuda12-archive.tar.xz
+                https://developer.download.nvidia.com/compute/cudnn/redist/cudnn/linux-x86_64/cudnn-linux-x86_64-9.20.0.48_cuda13-archive.tar.xz
               tar -xJf "$RUNNER_TEMP/cudnn.tar.xz" -C "$RUNNER_TEMP"
               printf 'CUDNN_ROOT=%s\n' \
-                "$RUNNER_TEMP/cudnn-linux-x86_64-9.20.0.48_cuda12-archive" \
+                "$RUNNER_TEMP/cudnn-linux-x86_64-9.20.0.48_cuda13-archive" \
                 >> "$GITHUB_ENV"
               ;;
             Windows)
               curl --fail --location --retry 2 \
                 --output "$(cygpath -u "$RUNNER_TEMP")/cudnn.zip" \
-                https://developer.download.nvidia.com/compute/cudnn/redist/cudnn/windows-x86_64/cudnn-windows-x86_64-9.20.0.48_cuda12-archive.zip
+                https://developer.download.nvidia.com/compute/cudnn/redist/cudnn/windows-x86_64/cudnn-windows-x86_64-9.20.0.48_cuda13-archive.zip
               7z x -y "-o$RUNNER_TEMP" "$RUNNER_TEMP\\cudnn.zip" > /dev/null
               printf 'CUDNN_ROOT=%s\n' \
-                "$RUNNER_TEMP\\cudnn-windows-x86_64-9.20.0.48_cuda12-archive" \
+                "$RUNNER_TEMP\\cudnn-windows-x86_64-9.20.0.48_cuda13-archive" \
                 >> "$GITHUB_ENV"
               ;;
           esac
@@ -221,7 +221,7 @@ jobs:
 
           case "$BACKEND" in
             cuda)
-              export TORCH_CUDA_ARCH_LIST='6.1;7.0;7.5;8.0;8.6;8.9;9.0;10.0;12.0+PTX'
+              export TORCH_CUDA_ARCH_LIST='7.5;8.0;8.6;8.9;9.0;10.0;12.0+PTX'
               backend_args=(
                 -DUSE_CUDA=ON
                 -DUSE_ROCM=OFF
