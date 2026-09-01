@@ -38,25 +38,35 @@ jobs:
 
   build:
     needs: source
-    name: ${{ matrix.backend }} / ${{ matrix.os }}
+    name: ${{ matrix.backend }} / ${{ matrix.target }}
     strategy:
       fail-fast: false
       matrix:
         include:
           - backend: cpu
             os: windows-latest-xl
+            target: x86_64-pc-windows-msvc
           - backend: cpu
             os: ubuntu-latest-xl
+            target: x86_64-unknown-linux-gnu
           - backend: cuda
             os: windows-latest-xl
+            target: x86_64-pc-windows-msvc
           - backend: cuda
             os: ubuntu-latest-xl
+            target: x86_64-unknown-linux-gnu
+          - backend: cuda
+            os: ubuntu-latest-arm-xl
+            target: aarch64-unknown-linux-gnu
           - backend: hip
             os: windows-latest-xl
+            target: x86_64-pc-windows-msvc
           - backend: hip
             os: ubuntu-latest-xl
+            target: x86_64-unknown-linux-gnu
           - backend: metal
             os: macos-latest-xl
+            target: aarch64-apple-darwin
 
     runs-on: ${{ matrix.os }}
     env:
@@ -64,6 +74,7 @@ jobs:
       SCCACHE_GHA_ENABLED: 'true'
       SCCACHE_IDLE_TIMEOUT: '0'
       SCCACHE_IGNORE_SERVER_IO_ERROR: '1'
+      TARGET_TRIPLE: ${{ matrix.target }}
 
     steps:
       - name: Enable Git long paths
@@ -99,6 +110,7 @@ jobs:
         with:
           cuda: '13.0.0'
           method: network
+          log-file-suffix: ${{ matrix.target }}
           sub-packages: >-
             ${{ runner.os == 'Linux'
               && '["nvcc", "cudart", "cudart-dev", "crt", "thrust", "nvml-dev", "nvrtc", "nvrtc-dev", "nvtx"]'
@@ -119,12 +131,16 @@ jobs:
         run: |
           case "$RUNNER_OS" in
             Linux)
+              cudnn_platform=linux-x86_64
+              if [[ "$TARGET_TRIPLE" == aarch64-unknown-linux-gnu ]]; then
+                cudnn_platform=linux-sbsa
+              fi
               curl --fail --location --retry 2 \
                 --output "$RUNNER_TEMP/cudnn.tar.xz" \
-                https://developer.download.nvidia.com/compute/cudnn/redist/cudnn/linux-x86_64/cudnn-linux-x86_64-9.20.0.48_cuda13-archive.tar.xz
+                "https://developer.download.nvidia.com/compute/cudnn/redist/cudnn/$cudnn_platform/cudnn-$cudnn_platform-9.20.0.48_cuda13-archive.tar.xz"
               tar -xJf "$RUNNER_TEMP/cudnn.tar.xz" -C "$RUNNER_TEMP"
               printf 'CUDNN_ROOT=%s\n' \
-                "$RUNNER_TEMP/cudnn-linux-x86_64-9.20.0.48_cuda13-archive" \
+                "$RUNNER_TEMP/cudnn-$cudnn_platform-9.20.0.48_cuda13-archive" \
                 >> "$GITHUB_ENV"
               ;;
             Windows)
@@ -218,7 +234,7 @@ jobs:
 
           case "$BACKEND" in
             cuda)
-              export TORCH_CUDA_ARCH_LIST='7.5;8.0;8.6;8.9;9.0;10.0;12.0+PTX'
+              export TORCH_CUDA_ARCH_LIST='7.5;8.0;8.6;8.7;8.8;8.9;9.0;10.0;10.3;11.0;12.0;12.1'
               backend_args=(
                 -DUSE_CUDA=ON
                 -DUSE_ROCM=OFF
@@ -230,7 +246,11 @@ jobs:
               )
               ;;
             hip)
-              export PYTORCH_ROCM_ARCH='gfx1030;gfx1100;gfx1101;gfx1102;gfx1103;gfx1150;gfx1151;gfx1152;gfx1153;gfx1200;gfx1201;gfx908;gfx90a;gfx942;gfx950'
+              if [[ "$RUNNER_OS" == Linux ]]; then
+                export PYTORCH_ROCM_ARCH='gfx908;gfx90a;gfx942;gfx950;gfx1010;gfx1011;gfx1012;gfx1030;gfx1031;gfx1032;gfx1033;gfx1034;gfx1035;gfx1036;gfx1100;gfx1101;gfx1102;gfx1103;gfx1150;gfx1151;gfx1152;gfx1153;gfx1200;gfx1201;gfx1250'
+              else
+                export PYTORCH_ROCM_ARCH='gfx908;gfx90a;gfx1010;gfx1011;gfx1012;gfx1030;gfx1031;gfx1032;gfx1033;gfx1034;gfx1035;gfx1036;gfx1100;gfx1101;gfx1102;gfx1103;gfx1150;gfx1151;gfx1152;gfx1153;gfx1200;gfx1201'
+              fi
               printf 'PYTORCH_ROCM_ARCH=%s\n' "$PYTORCH_ROCM_ARCH" >> "$GITHUB_ENV"
               backend_args=(
                 -DUSE_CUDA=OFF
@@ -412,7 +432,7 @@ jobs:
             cp "install/lib/${prefix}caffe2_nvrtc.$extension" package/
           fi
           cp "shim-install/${prefix}koharu-torch.$extension" package/
-          tar -C package -czf "$RUNNER_OS-$BACKEND.tar.gz" .
+          tar -C package -czf "$TARGET_TRIPLE-$BACKEND.tar.gz" .
 
       - name: Stop sccache
         if: always()
@@ -424,8 +444,8 @@ jobs:
       - name: Upload Torch
         uses: actions/upload-artifact@v7
         with:
-          name: ${{ runner.os }}-${{ matrix.backend }}
-          path: ${{ runner.os }}-${{ matrix.backend }}.tar.gz
+          name: ${{ matrix.target }}-${{ matrix.backend }}
+          path: ${{ matrix.target }}-${{ matrix.backend }}.tar.gz
           if-no-files-found: error
           retention-days: 3
 
