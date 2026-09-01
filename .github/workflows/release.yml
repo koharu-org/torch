@@ -361,7 +361,6 @@ jobs:
 
       - name: Build Torch
         shell: bash
-        timeout-minutes: 300
         run: |
           parallel_args=()
           if [[ "$RUNNER_OS" == Linux && "$BACKEND" == cuda ]]; then
